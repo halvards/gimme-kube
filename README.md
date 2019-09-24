@@ -7,7 +7,7 @@ Create the image in your project:
 
 ```
 gcloud config set project <whatever>
-bash make-image.sh
+./make-image.sh
 ```
 
 The image creation takes a while, but lets you get your kube on faster from
@@ -16,7 +16,7 @@ then on.
 To get an instance:
 
 ```
-bash gimme.sh
+./gimme.sh
 ```
 
 

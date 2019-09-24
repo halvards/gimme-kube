@@ -1,6 +1,10 @@
-#! /bin/bash
+#!/bin/bash
 set -e
 set -x
+set -o pipefail
+
+# Allow unattended installations
+export DEBIAN_FRONTEND=noninteractive
 
 # Install prerequisites
 apt-get update

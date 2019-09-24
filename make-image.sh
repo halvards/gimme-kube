@@ -1,9 +1,9 @@
 #!/bin/bash
 
-instance=image-maker
+instance=${INSTANCE:-image-maker}
 zone="${ZONE:-us-west2-a}"
 project=$(gcloud config list project --format "value(core.project)" )
-image_name=kubebox
+image_name=${IMAGE_NAME:-kubebox}
 
 gcloud compute instances create $instance \
 --zone=$zone --machine-type=n1-standard-2 \

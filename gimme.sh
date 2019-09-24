@@ -1,15 +1,17 @@
 #!/bin/bash
 
-boxname=kube-box
+boxname=${BOXNAME:-kubebox}
 zone="${ZONE:-us-west2-a}"
 project=$(gcloud config list project --format "value(core.project)" )
-image_name=kubebox
+image_name=${IMAGE_NAME:-kubebox}
+machine_type=${MACHINE_TYPE:-n1-standard-4}
+source_ranges=${SOURCE_RANGES:-0.0.0.0/0}
 
 {
 
 echo 📍 Creating Instance
-gcloud compute instances create $boxname --zone=us-west2-a \
-    --machine-type=n1-standard-4 \
+gcloud compute instances create $boxname --zone=$zone \
+    --machine-type=$machine_type \
     --subnet=default \
     --scopes=https://www.googleapis.com/auth/cloud-platform \
 	--tags=kube-master \
@@ -22,7 +24,7 @@ echo 👮 Creating Firewall Rule
 gcloud compute firewall-rules create default-allow-kubeadm-master \
   --allow tcp:6443 \
   --target-tags kube-master  \
-  --source-ranges 0.0.0.0/0 1>&2 &
+  --source-ranges $source_ranges 1>&2 &
 
 echo -n "🔧 Waiting for kubeadmin setup"
 
@@ -39,7 +41,7 @@ gcloud compute ssh $boxname --command='sudo chmod +r /etc/kubernetes/admin.conf'
 gcloud compute scp -q --zone $zone $boxname:/etc/kubernetes/admin.conf . > /dev/null
 sed "s/$(gcloud compute instances describe ${boxname} --zone ${zone} --format='value(networkInterfaces.networkIP)')/$(gcloud compute instances describe ${boxname} --zone ${zone} --format='value(networkInterfaces.accessConfigs[0].natIP)')/" admin.conf > $boxname.conf
 
-export KUBECONFIG=`pwd`/$boxname.conf
+export KUBECONFIG=$(pwd)/$boxname.conf
 echo -n "🔌 Waiting for API Server"
 until kubectl cluster-info | grep -q "running";
 do
@@ -49,20 +51,17 @@ done
 
 echo
 
-echo "🖍  Installing cluster networking"
-# kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
-kubectl apply -f https://docs.projectcalico.org/v3.3/getting-started/kubernetes/installation/hosted/rbac-kdd.yaml 1>&2
-kubectl apply -f https://docs.projectcalico.org/v3.3/getting-started/kubernetes/installation/hosted/kubernetes-datastore/calico-networking/1.7/calico.yaml 1>&2
-
 echo 💥 Removing master taint to allow workloads on node
 
-kubectl taint nodes --all node-role.kubernetes.io/master- 1>&2
+kubectl taint nodes $boxname node-role.kubernetes.io/master- 1>&2
 
-} 2> /tmp/kubebox.log
+} 2> kubebox.log
+
+echo "🖍  Installing cluster networking"
+kubectl apply -f https://docs.projectcalico.org/v3.9/manifests/calico.yaml
 
 echo 🎉  Done
 echo
 echo Now use:
 echo
-echo export KUBECONFIG=`pwd`/$boxname.conf
-
+echo export KUBECONFIG=$(pwd)/$boxname.conf
